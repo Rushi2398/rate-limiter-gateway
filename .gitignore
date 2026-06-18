@@ -1,3 +1,9 @@
+# Binaries (anchored to repo root — do NOT match cmd/gateway/ source dir)
+/gateway
+/bin/
+*.exe
+*.out
+
 # IDE
 .idea/
 .vscode/
