@@ -1,0 +1,11 @@
+redis_addr: "localhost:6379"
+default_capacity: 100
+default_rate: 50          # tokens per second
+
+clients:
+  api-key-abc123:
+    capacity: 500
+    rate: 200
+  api-key-free-tier:
+    capacity: 20
+    rate: 5
