@@ -10,11 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// newTestLimiter spins up an in-process miniredis instance and returns a
-// Limiter wired to it, plus a cleanup func. miniredis implements the Redis
-// protocol (including EVAL/Lua) so our actual bucketScript runs for real —
-// this is not a mock of the limiter's behavior, it's the real script
-// executing against a real (if in-memory) Redis server.
+// newTestLimiter spins up an in-process miniredis instance and returns a Limiter wired to it, plus a cleanup func. miniredis implements the Redis protocol (including EVAL/Lua) so our actual bucketScript runs for real — this is not a mock of the limiter's behavior, it's the real script executing against a real (if in-memory) Redis server.
 func newTestLimiter(t *testing.T) (*Limiter, *miniredis.Miniredis) {
 	t.Helper()
 	mr, err := miniredis.Run()
@@ -87,9 +83,7 @@ func TestAllow_RefillsOverTime(t *testing.T) {
 		t.Error("expected denial immediately after exhausting bucket")
 	}
 
-	// Advance miniredis's virtual clock (used for TTL) and also sleep
-	// briefly so our script's real time.Now() reflects elapsed time,
-	// simulating the refill rate.
+	// Advance miniredis's virtual clock (used for TTL) and also sleep briefly so our script's real time.Now() reflects elapsed time, simulating the refill rate.
 	mr.FastForward(200 * time.Millisecond)
 	time.Sleep(150 * time.Millisecond) // ~1.5 tokens at 10/sec
 
@@ -153,13 +147,7 @@ func TestAllow_RejectsInvalidConfig(t *testing.T) {
 	}
 }
 
-// TestAllow_RefillIsSubSecondPrecise proves that refill is NOT quantized
-// to whole-second steps. "rate" is documented as tokens/second as a
-// *unit*, but the underlying calculation tracks elapsed time in
-// milliseconds — this test inspects the raw Redis hash state directly
-// (bypassing Allow's boolean return, which only tells us "allowed or
-// not", not the fractional token count) to confirm a sub-second gap
-// produces a proportional, non-zero fractional refill.
+// TestAllow_RefillIsSubSecondPrecise proves that refill is NOT quantized to whole-second steps. "rate" is documented as tokens/second as a *unit*, but the underlying calculation tracks elapsed time in milliseconds — this test inspects the raw Redis hash state directly bypassing Allow's boolean return, which only tells us "allowed or not", not the fractional token count) to confirm a sub-second gap produces a proportional, non-zero fractional refill.
 func TestAllow_RefillIsSubSecondPrecise(t *testing.T) {
 	lim, _ := newTestLimiter(t)
 	rdb := lim.rdb // white-box access within the package for inspection
@@ -167,9 +155,7 @@ func TestAllow_RefillIsSubSecondPrecise(t *testing.T) {
 
 	capacity, rate := 100, 100 // 100 tok/sec — easy mental math: 1 tok per 10ms
 
-	// Drain most of the bucket down to a known, small token count so we
-	// can observe the refill clearly. capacity=100, rate=100: spend 95
-	// tokens immediately (elapsed time ~0), leaving ~5.
+	// Drain most of the bucket down to a known, small token count so we can observe the refill clearly. capacity=100, rate=100: spend 95 tokens immediately (elapsed time ~0), leaving ~5.
 	for i := 0; i < 95; i++ {
 		allowed, err := lim.Allow(ctx, "client-precision", capacity, rate)
 		if err != nil || !allowed {
@@ -178,35 +164,24 @@ func TestAllow_RefillIsSubSecondPrecise(t *testing.T) {
 	}
 
 	tokensBefore := readTokens(t, ctx, rdb, "client-precision")
-	// Loose sanity bound: the 95-call setup loop itself takes real wall
-	// time (each call is a round-trip to miniredis), during which the
-	// bucket keeps refilling — so tokensBefore won't be exactly 5, just
-	// "small and positive". We only care that setup left us with a low,
-	// known-ish starting point; the actual assertion is on the *delta*
-	// after the controlled sleep below, not on this absolute value.
+	// Loose sanity bound: the 95-call setup loop itself takes real wall time (each call is a round-trip to miniredis), during which the bucket keeps refilling — so tokensBefore won't be exactly 5, just "small and positive".
+	// We only care that setup left us with a low, known-ish starting point; the actual assertion is on the *delta* after the controlled sleep below, not on this absolute value.
 	if tokensBefore < 0 || tokensBefore > 20 {
 		t.Fatalf("tokensBefore = %v, want a small positive value (sanity check on setup)", tokensBefore)
 	}
 
-	// Sleep a deliberately sub-second, sub-100ms gap. At rate=100/sec,
-	// 30ms should add ~3 tokens (0.030 * 100 = 3.0) — clearly non-zero
-	// and clearly not "however many tokens a full second would add".
+	// Sleep a deliberately sub-second, sub-100ms gap. At rate=100/sec, 30ms should add ~3 tokens (0.030 * 100 = 3.0) — clearly non-zero and clearly not "however many tokens a full second would add".
 	const sleepMS = 30
 	time.Sleep(sleepMS * time.Millisecond)
 
-	// A throwaway Allow call to trigger the script's refill calculation
-	// and update "last", then we inspect the resulting state.
+	// A throwaway Allow call to trigger the script's refill calculation and update "last", then we inspect the resulting state.
 	_, err := lim.Allow(ctx, "client-precision", capacity, rate)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	tokensAfter := readTokens(t, ctx, rdb, "client-precision")
 
-	// tokensAfter = tokensBefore + (sleepMS/1000 * rate) - 1 (the token
-	// this last Allow call just spent). Compute the expected refill and
-	// assert it's in a tight, sub-second-precision band — if refill were
-	// quantized to whole seconds, this would be ~0 (since well under 1s
-	// elapsed), not ~3.
+	// tokensAfter = tokensBefore + (sleepMS/1000 * rate) - 1 (the token this last Allow call just spent). Compute the expected refill and assert it's in a tight, sub-second-precision band — if refill were quantized to whole seconds, this would be ~0 (since well under 1s elapsed), not ~3.
 	expectedRefill := (float64(sleepMS) / 1000.0) * float64(rate)
 	actualRefill := (tokensAfter - tokensBefore) + 1 // +1 to undo this call's own spend
 
@@ -223,9 +198,7 @@ func TestAllow_RefillIsSubSecondPrecise(t *testing.T) {
 		sleepMS, actualRefill, expectedRefill)
 }
 
-// readTokens inspects the raw "tokens" field of a client's bucket hash
-// directly via HGET, bypassing the Allow() boolean abstraction so tests
-// can assert on the actual fractional token count.
+// readTokens inspects the raw "tokens" field of a client's bucket hash directly via HGET, bypassing the Allow() boolean abstraction so tests can assert on the actual fractional token count.
 func readTokens(t *testing.T, ctx context.Context, rdb *redis.Client, clientID string) float64 {
 	t.Helper()
 	val, err := rdb.HGet(ctx, "rl:"+clientID, "tokens").Float64()
@@ -235,11 +208,7 @@ func readTokens(t *testing.T, ctx context.Context, rdb *redis.Client, clientID s
 	return val
 }
 
-// TestAllow_ConcurrentRequestsRespectCapacity is the most important test in
-// this file: it proves the Lua script's atomicity. If check-and-decrement
-// were not atomic, concurrent goroutines could all read "tokens=1" before
-// any of them write back the decrement, over-admitting requests — the
-// classic race condition that token buckets are supposed to prevent.
+// TestAllow_ConcurrentRequestsRespectCapacity is the most important test in this file: it proves the Lua script's atomicity. If check-and-decrement were not atomic, concurrent goroutines could all read "tokens=1" before any of them write back the decrement, over-admitting requests — the classic race condition that token buckets are supposed to prevent.
 func TestAllow_ConcurrentRequestsRespectCapacity(t *testing.T) {
 	lim, _ := newTestLimiter(t)
 	ctx := context.Background()
@@ -249,8 +218,7 @@ func TestAllow_ConcurrentRequestsRespectCapacity(t *testing.T) {
 	var mu sync.Mutex
 	allowedCount := 0
 
-	// Fire 200 concurrent requests at a bucket with capacity 50 and a
-	// near-zero refill rate so refill doesn't interfere with the count.
+	// Fire 200 concurrent requests at a bucket with capacity 50 and a near-zero refill rate so refill doesn't interfere with the count.
 	concurrency := 200
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)

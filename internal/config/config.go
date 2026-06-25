@@ -41,6 +41,8 @@ type Config struct {
 	// This is a YAML *pointer* internally (see Load) so that an absent field can be distinguished from an explicit `false` — the documented default is true, applied only when the field is omitted entirely.
 	FailOpen *bool `yaml:"fail_open"`
 
+	AllowAnonymous *bool `yaml:"allow_anonymous"`
+
 	// Clients maps a client identifier (typically an API key) to its specific rate-limit rule, overriding the defaults above.
 	Clients map[string]ClientRule `yaml:"clients"`
 }
@@ -51,6 +53,14 @@ func (c *Config) FailOpenOrDefault() bool {
 		return true
 	}
 	return *c.FailOpen
+}
+
+// AllowAnonymousOrDefault returns the configured AllowAnonymous value, or true if the field was omitted from YAML entirely.
+func (c *Config) AllowAnonymousOrDefault() bool {
+	if c.AllowAnonymous == nil {
+		return true
+	}
+	return *c.AllowAnonymous
 }
 
 // Load reads and parses the YAML config at path, then applies environment variable overrides on top. Currently only REDIS_ADDR is override-able; this is intentional — per-client rules are meant to live in version control, not in ad hoc environment variables that are easy to lose track of across deployments.

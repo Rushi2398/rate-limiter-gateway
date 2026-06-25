@@ -13,6 +13,16 @@ default_rate: 50          # tokens per second
 # "temporarily unlimited" is itself an unacceptable outcome.
 fail_open: true
 
+# What happens to a request whose X-API-Key is missing or not found
+# below in `clients`.
+#   true  = let it through unauthenticated (it'll be rate limited by IP
+#           instead of by key — a coarse, shared limit, like a public
+#           free tier)
+#   false = reject with 401 before it reaches rate limiting or upstream
+# Defaults to true if omitted. Set this to false if every request must
+# be attributable to a known client (no public/anonymous surface).
+allow_anonymous: true
+
 clients:
   api-key-abc123:
     capacity: 500

@@ -223,3 +223,42 @@ func TestFailOpenOrDefault_RespectsExplicitTrue(t *testing.T) {
 		t.Errorf("FailOpenOrDefault() = %v, want true when yaml explicitly sets fail_open: true", got)
 	}
 }
+
+func TestAllowAnonymousOrDefault_DefaultsTrueWhenOmitted(t *testing.T) {
+	// validConfig has no allow_anonymous key at all.
+	path := writeTempConfig(t, validConfig)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := cfg.AllowAnonymousOrDefault(); got != true {
+		t.Errorf("AllowAnonymousOrDefault() = %v, want true when allow_anonymous is omitted from yaml", got)
+	}
+}
+
+func TestAllowAnonymousOrDefault_RespectsExplicitFalse(t *testing.T) {
+	content := validConfig + "\nallow_anonymous: false\n"
+	path := writeTempConfig(t, content)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := cfg.AllowAnonymousOrDefault(); got != false {
+		t.Errorf("AllowAnonymousOrDefault() = %v, want false when yaml explicitly sets allow_anonymous: false", got)
+	}
+}
+
+func TestAllowAnonymousOrDefault_RespectsExplicitTrue(t *testing.T) {
+	content := validConfig + "\nallow_anonymous: true\n"
+	path := writeTempConfig(t, content)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := cfg.AllowAnonymousOrDefault(); got != true {
+		t.Errorf("AllowAnonymousOrDefault() = %v, want true when yaml explicitly sets allow_anonymous: true", got)
+	}
+}
