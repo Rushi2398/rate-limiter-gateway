@@ -22,7 +22,7 @@ const validConfig = `
 redis_addr: "localhost:6379"
 default_capacity: 100
 default_rate: 50
- 
+
 clients:
   api-key-abc123:
     capacity: 500
@@ -32,7 +32,7 @@ clients:
     rate: 5
 `
 
-func TestLoad_ParseValidConfig(t *testing.T) {
+func TestLoad_ParsesValidConfig(t *testing.T) {
 	path := writeTempConfig(t, validConfig)
 
 	cfg, err := Load(path)
@@ -182,5 +182,44 @@ func TestRuleFor_FallsBackToDefaultsForUnknownClient(t *testing.T) {
 	if rule.Capacity != cfg.DefaultCapacity || rule.Rate != cfg.DefaultRate {
 		t.Errorf("RuleFor(unknown) = %+v, want defaults {Capacity:%d Rate:%d}",
 			rule, cfg.DefaultCapacity, cfg.DefaultRate)
+	}
+}
+
+func TestFailOpenOrDefault_DefaultsTrueWhenOmitted(t *testing.T) {
+	// validConfig has no fail_open key at all.
+	path := writeTempConfig(t, validConfig)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := cfg.FailOpenOrDefault(); got != true {
+		t.Errorf("FailOpenOrDefault() = %v, want true when fail_open is omitted from yaml", got)
+	}
+}
+
+func TestFailOpenOrDefault_RespectsExplicitFalse(t *testing.T) {
+	content := validConfig + "\nfail_open: false\n"
+	path := writeTempConfig(t, content)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := cfg.FailOpenOrDefault(); got != false {
+		t.Errorf("FailOpenOrDefault() = %v, want false when yaml explicitly sets fail_open: false", got)
+	}
+}
+
+func TestFailOpenOrDefault_RespectsExplicitTrue(t *testing.T) {
+	content := validConfig + "\nfail_open: true\n"
+	path := writeTempConfig(t, content)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := cfg.FailOpenOrDefault(); got != true {
+		t.Errorf("FailOpenOrDefault() = %v, want true when yaml explicitly sets fail_open: true", got)
 	}
 }

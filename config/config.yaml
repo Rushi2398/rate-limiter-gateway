@@ -2,6 +2,17 @@ redis_addr: "localhost:6379"
 default_capacity: 100
 default_rate: 50          # tokens per second
 
+# What happens to a request if Redis is unreachable when we try to check
+# its rate limit.
+#   true  = fail open   — let the request through (gateway stays up,
+#                          rate limiting is briefly skipped)
+#   false = fail closed — reject with 503 (the limit's guarantee holds,
+#                          but a redis outage becomes a full outage)
+# Defaults to true if omitted. Set this to false if your rate limit is a
+# security control (e.g. login throttling) or a billing boundary, where
+# "temporarily unlimited" is itself an unacceptable outcome.
+fail_open: true
+
 clients:
   api-key-abc123:
     capacity: 500

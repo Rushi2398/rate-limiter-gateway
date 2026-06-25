@@ -22,8 +22,35 @@ type Config struct {
 	DefaultCapacity int `yaml:"default_capacity"`
 	DefaultRate     int `yaml:"default_rate"`
 
+	// FailOpen controls what happens to a request when the rate limiter cannot reach Redis to make a decision.
+
+	//   true  (fail open)   — allow the request through. Prioritizes
+	//                         availability: a Redis outage degrades the
+	//                         gateway to "unlimited" instead of "fully
+	//                         down". Appropriate when rate limiting is a
+	//                         courtesy/fairness control and your backend
+	//                         can tolerate a burst of unmetered traffic.
+
+	//   false (fail closed) — reject the request with 503. Prioritizes
+	//                         the limit's guarantee: appropriate when the
+	//                         limit is a security control (e.g. login
+	//                         throttling) or enforces a billing boundary,
+	//                         where "temporarily unlimited" is itself the
+	//                         bad outcome, not a safe fallback.
+
+	// This is a YAML *pointer* internally (see Load) so that an absent field can be distinguished from an explicit `false` — the documented default is true, applied only when the field is omitted entirely.
+	FailOpen *bool `yaml:"fail_open"`
+
 	// Clients maps a client identifier (typically an API key) to its specific rate-limit rule, overriding the defaults above.
 	Clients map[string]ClientRule `yaml:"clients"`
+}
+
+// FailOpenOrDefault returns the configured FailOpen value, or true if the field was omitted from YAML entirely. Centralizing this here means callers never have to nil-check FailOpen themselves.
+func (c *Config) FailOpenOrDefault() bool {
+	if c.FailOpen == nil {
+		return true
+	}
+	return *c.FailOpen
 }
 
 // Load reads and parses the YAML config at path, then applies environment variable overrides on top. Currently only REDIS_ADDR is override-able; this is intentional — per-client rules are meant to live in version control, not in ad hoc environment variables that are easy to lose track of across deployments.
