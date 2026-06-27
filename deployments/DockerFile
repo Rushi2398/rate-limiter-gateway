@@ -1,0 +1,29 @@
+# --- build stage ---
+FROM golang:1.26-alpine AS builder
+
+WORKDIR /src
+
+# Cache dependency downloads separately from source changes, so editing
+# application code doesn't bust the module-download cache layer.
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+# CGO_ENABLED=0 produces a statically-linked binary, which is required to
+# run on the scratch base below — scratch has no libc, so a dynamically
+# linked binary would fail at container start with a confusing
+# "no such file or directory" despite the binary clearly being present.
+RUN CGO_ENABLED=0 GOOS=linux go build -o /gateway ./cmd/gateway
+
+# --- rutime stage ---
+FROM scratch
+
+WORKDIR /app
+
+COPY --from=builder /gateway /app/gateway
+COPY --from=builder /src/configs ./configs
+
+EXPOSE 8080
+
+ENTRYPOINT ["/app/gateway"]

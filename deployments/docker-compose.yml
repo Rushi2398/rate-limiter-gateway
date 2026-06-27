@@ -1,0 +1,44 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  # Stand-in backend so the gateway has something real to proxy to.
+  # httpbin echoes back whatever was requested, which is convenient for
+  # exercising the gateway's behavior (curl http://localhost:8080/get
+  # shows exactly what reached the upstream, headers included). Swap
+  # this for your real service in any non-demo deployment — only the
+  # service name "upstream" matters to the gateway, since that's what
+  # UPSTREAM_URL's default (http://upstream:80) and this file rely on.
+  upstream:
+    image: kennethreitz/httpbin
+    ports:
+      - "9000:80"
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      # Overrides configs/config.yaml's redis_addr (localhost:6379),
+      # which is only correct for running the binary directly on a host
+      # machine, not inside this compose network where services reach
+      # each other by service name.
+      - REDIS_ADDR=redis:6379
+      # Not strictly needed since main.go already defaults to exactly
+      # this value — set explicitly here so the compose file is
+      # self-documenting about which service it's wired to.
+      - UPSTREAM_URL=http://upstream:80
+    depends_on:
+      redis:
+        condition: service_healthy
+      upstream:
+        condition: service_started

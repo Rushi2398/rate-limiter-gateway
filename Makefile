@@ -1,4 +1,4 @@
-.PHONY: build run test tidy fmt vet clean
+.PHONY: build run test tidy fmt vet docker-up docker-down clean
 
 BINARY := gateway
 CMD    := ./cmd/gateway
@@ -20,6 +20,12 @@ fmt: ## Format all source files
 
 vet: ## Run go vet static analysis
 	go vet ./...
+
+docker-up: ## Bring up the full stack (gateway + redis + upstream)
+	docker compose -f deployments/docker-compose.yml up -d --build
+
+docker-down: ## Tear down the stack
+	docker compose -f deployments/docker-compose.yml down
 
 clean: ## Remove build artifacts
 	rm -rf bin/
