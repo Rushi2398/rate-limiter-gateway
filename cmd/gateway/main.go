@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
+	_ "net/http/pprof"
 	"net/url"
 	"os"
 	"os/signal"
@@ -29,6 +30,10 @@ const (
 )
 
 func main() {
+	go func() {
+		log.Println("pprof listening on :6060")
+		log.Println(http.ListenAndServe(":6060", nil))
+	}()
 	if err := run(); err != nil {
 		log.Fatal(err)
 	}
@@ -59,7 +64,15 @@ func run() error {
 		return err
 	}
 
+	transport := &http.Transport{
+		MaxIdleConns:        1000,
+		MaxIdleConnsPerHost: 1000,
+		MaxConnsPerHost:     0,
+		IdleConnTimeout:     90 * time.Second,
+	}
+
 	proxy := httputil.NewSingleHostReverseProxy(upstreamURL)
+	proxy.Transport = transport
 
 	lim := ratelimit.New(rdb)
 	handler := buildHandler(proxy, lim, cfg)
@@ -97,12 +110,12 @@ func buildHandler(proxy http.Handler, lim *ratelimit.Limiter, cfg *config.Config
 	return h
 }
 
-// upstreamTarget reads the upstream URL from UPSTREAM_URL, defaulting to the mock httpbin-style service docker-compose brings up under the name "upstream".
+// upstreamTarget reads the upstream URL from UPSTREAM_URL, defaulting to the mock upstream service docker-compose brings up under the name "upstream".
 // Kept as an env var rather than a config.yaml field since it's deployment topology (where's the backend), not a rate-limiting policy — the same distinction config.go's doc comments draw between REDIS_ADDR (env) and per-client rules (yaml).
 func upstreamTarget() (*url.URL, error) {
 	raw := os.Getenv("UPSTREAM_URL")
 	if raw == "" {
-		raw = "http://upstream:80"
+		raw = "http://upstream:8081"
 	}
 	u, err := url.Parse(raw)
 	if err != nil {

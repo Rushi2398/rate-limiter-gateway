@@ -1,0 +1,76 @@
+## Environment this run was recorded in
+
+goos: darwin
+goarch: arm64
+pkg: github.com/Rushi2398/rate-limiter-gateway/internal/ratelimit
+cpu: Apple M2
+
+$ REAL_REDIS_ADDR=localhost:6379 go test ./internal/ratelimit/... \
+        -bench=BenchmarkAllow -benchtime=3s -run=^$ -benchmem
+
+BenchmarkAllow-8                           44575             79361 ns/op          210075 B/op        828 allocs/op
+BenchmarkAllow_RealRedis-8                 27864            122581 ns/op             448 B/op         15 allocs/op
+BenchmarkAllow_RealRedis_Parallel-8        96595             38062 ns/op             453 B/op         15 allocs/op
+
+$ k6 run load_test.js  
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: load_test.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 5000 max VUs, 1m30s max duration (incl. graceful stop):
+              * sustained_rps: Up to 5000.00 iterations/s for 1m0s over 4 stages (maxVUs: 1000-5000, gracefulStop: 30s)
+
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate>0.99' rate=100.00%
+
+    http_req_duration
+    ✓ 'p(95)<50' p(95)=1.68ms
+    ✓ 'p(99)<100' p(99)=14.19ms
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 622497  10374.023945/s
+    checks_succeeded...: 100.00% 622497 out of 622497
+    checks_failed......: 0.00%   0 out of 622497
+
+    ✓ status is 200 or 429
+    ✓ has X-Request-ID header
+    ✓ has X-RateLimit-Limit header
+
+    HTTP
+    http_req_duration..............: avg=932.46µs min=203µs   med=413µs    max=119.2ms p(90)=859µs p(95)=1.68ms
+      { expected_response:true }...: avg=932.46µs min=203µs   med=413µs    max=119.2ms p(90)=859µs p(95)=1.68ms
+    http_req_failed................: 0.00%  0 out of 207499
+    http_reqs......................: 207499 3458.007982/s
+
+    EXECUTION
+    iteration_duration.............: avg=983.54µs min=236.2µs med=454.16µs max=126.1ms p(90)=949µs p(95)=1.81ms
+    iterations.....................: 207499 3458.007982/s
+    vus............................: 0      min=0           max=13  
+    vus_max........................: 1000   min=1000        max=1000
+
+    NETWORK
+    data_received..................: 38 MB  633 kB/s
+    data_sent......................: 21 MB  342 kB/s
+
+
+
+
+running (1m00.0s), 0000/1000 VUs, 207499 complete and 0 interrupted iterations
+sustained_rps ✓ [======================================] 0000/1000 VUs  1m0s  0015.81 iters/s

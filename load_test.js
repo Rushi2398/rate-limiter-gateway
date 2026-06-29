@@ -17,8 +17,8 @@ export const options = {
       executor: "ramping-arrival-rate",
       startRate: 500,
       timeUnit: "1s",
-      preAllocatedVUs: 200,
-      maxVUs: 1000,
+      preAllocatedVUs: 1000,
+      maxVUs: 5000,
       stages: [
         { target: 500, duration: "10s" }, // ramp up
         { target: 5000, duration: "10s" }, // ramp to the target rate
@@ -29,7 +29,7 @@ export const options = {
   },
   thresholds: {
     // The actual pass/fail bar for the "sub-5ms overhead" claim.
-    // This measures total request duration against the upstream (httpbin), which has its own baseline latency — see the README note on isolating gateway-only overhead from upstream latency.
+    // This measures total request duration against the upstream, which has its own baseline latency — see the README note on isolating gateway-only overhead from upstream latency.
     http_req_duration: ["p(95)<50", "p(99)<100"],
     http_req_failed: ["rate<0.01"], // <1% hard failures (timeouts, resets)
     checks: ["rate>0.99"],
