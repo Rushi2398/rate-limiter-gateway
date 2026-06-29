@@ -27,10 +27,9 @@ rate-gateway/
 ├── deployments/
 │   ├── Dockerfile
 │   └── docker-compose.yml
-├── tests/
-│   └── integration/          # tests that need a live redis/docker
 ├── Makefile
-├── go.mod / go.sum
+├── go.mod / go.sum            
+└── load_test.js              # k6 load test
 ```
 
 `internal/` is private to this module by Go's compiler — nothing outside
@@ -71,3 +70,29 @@ make test         # run unit tests with race detector
 make docker-up    # start gateway + redis + mock upstream
 make docker-down  # tear the stack down
 ```
+
+## Benchmarking the rate-limit overhead
+
+The "sub-5ms overhead" claim is about the Redis round-trip inside
+`Limiter.Allow()` — the actual rate-limiting decision, not the full
+HTTP request lifecycle. Two layers of evidence back it, with different
+confidence levels:
+
+```bash
+# Real Redis round-trip latency (needs a live redis-server):
+REAL_REDIS_ADDR=localhost:6379 go test ./internal/ratelimit/... \
+  -bench='BenchmarkAllow_RealRedis' -benchtime=3s -run=^$ -benchmem
+```
+
+For the full gateway+proxy+network path — the number that actually
+backs a "5k+ RPS" claim — run the k6 load test against the real
+docker-compose stack:
+
+```bash
+make docker-up
+k6 run load_test.js
+make docker-down
+```
+
+Record k6's own p95/p99 `http_req_duration` and achieved
+iterations/sec from its summary output.

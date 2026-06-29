@@ -30,3 +30,8 @@ clients:
   api-key-free-tier:
     capacity: 20
     rate: 5
+  # Used by load_test.js to sustain 5k+ RPS without artificially hitting 429s from a too-small per-client limit — the k6 test is measuring gateway+proxy overhead, not how fast Redis can say "no". 
+  # A real per-client limit in production would be far lower; this entry exists only to make the load test meaningful.
+  load-test-key:
+    capacity: 10000
+    rate: 6000
