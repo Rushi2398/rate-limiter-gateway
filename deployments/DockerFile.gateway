@@ -22,7 +22,7 @@ FROM scratch
 WORKDIR /app
 
 COPY --from=builder /gateway /app/gateway
-COPY --from=builder /src/configs ./configs
+COPY --from=builder /src/config ./configs
 
 EXPOSE 8080
 
